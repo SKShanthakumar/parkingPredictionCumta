@@ -6,11 +6,11 @@ from urllib.parse import quote_plus # Import quote_plus
 import pandas as pd
 
 # Connect to MongoDB
-MONGO_URI = os.getenv("MONGO_URI")
-MONGO_URI = "mongodb+srv://vigneshcumta:hpdOu1rwH6PKcLXf@serverlessinstance0.wrf2q95.mongodb.net/parking?retryWrites=true&w=majority"
+#MONGO_URI = os.getenv("MONGO_URI")
+MONGO_URI = "mongodb+srv://vigneshcumta:hpdOu1rwH6PKcLXf@serverlessinstance0.wrf2q95.mongodb.net/parking?retryWrites=true&w=majority&tls=true"
 print(MONGO_URI)
 # Connect to MongoDB
-client = MongoClient(MONGO_URI)
+client = MongoClient(MONGO_URI, tls=True)
 db = client["parking"]
 collection = db["availability"]
 
