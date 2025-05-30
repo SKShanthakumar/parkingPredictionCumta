@@ -1,6 +1,7 @@
 import requests
 import os
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from pymongo import MongoClient
 from urllib.parse import quote_plus # Import quote_plus
 import pandas as pd
@@ -18,7 +19,12 @@ data = requests.get(url).json()
 #print(data)
 now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 df = pd.DataFrame(data)
-df['timestamp'] = now
+
+# IST time
+now_ist = datetime.now(ZoneInfo("Asia/Kolkata"))
+print("IST time:", now_ist)
+df['timestamp'] = now_ist
+
 df = df[['timestamp','stationName', 'parkingAreaName', 'twoWheelerCapacity','threeNFourWheelerCapacity',
       'twoWheelerOccupied', 'threeNFourWheelerOccupied','twoWheelerAvailable','threeNFourWheelerAvailable']]
 print(df.columns, now)
