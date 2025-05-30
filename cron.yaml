@@ -1,0 +1,26 @@
+name: Fetch Chennai Metro Parking
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'  # Every 15 minutes UTC
+  workflow_dispatch:        # Manual trigger option
+
+jobs:
+  fetch-and-store:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.11
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run fetch_parking.py
+        env:
+          MONGO_URI: ${{ secrets.MONGO_URI }}
+        run: python fetch_parking.py
