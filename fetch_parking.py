@@ -7,6 +7,7 @@ import pandas as pd
 
 # Connect to MongoDB
 MONGO_URI = os.getenv("MONGO_URI")
+print(MONGO_URI)
 # Connect to MongoDB
 client = MongoClient(MONGO_URI)
 db = client["parking"]
