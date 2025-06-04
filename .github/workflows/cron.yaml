@@ -2,7 +2,7 @@ name: Fetch Chennai Metro Parking
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Every 5 minutes UTC
+    - cron: '*/10 * * * *'  # Every 5 minutes UTC
   workflow_dispatch:        # Manual trigger option
 
 jobs:

@@ -16,8 +16,6 @@ collection = db["availability"]
 
 url = "https://commuters-dataapi.chennaimetrorail.org/api/ParkingArea/getParkingAreaAvailability"
 data = requests.get(url).json()
-#print(data)
-now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 df = pd.DataFrame(data)
 
 # IST time
@@ -27,8 +25,9 @@ df['timestamp'] = now_ist
 
 df = df[['timestamp','stationName', 'parkingAreaName', 'twoWheelerCapacity','threeNFourWheelerCapacity',
       'twoWheelerOccupied', 'threeNFourWheelerOccupied','twoWheelerAvailable','threeNFourWheelerAvailable']]
-print(df.columns, now)
-df = df[df['stationName'].isin(['OTA - Nanganallur Road','Arignar Anna Alandur ','Guindy', 'Little Mount',])]
+
+df = df[df['stationName'].isin(['OTA - Nanganallur Road','Arignar Anna Alandur ','Guindy', 'Little Mount','St. Thomas Mount'])]
+
 print(df.head())
 records = df.to_dict(orient='records')
 
