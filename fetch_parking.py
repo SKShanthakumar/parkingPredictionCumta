@@ -19,7 +19,7 @@ data = requests.get(url).json()
 df = pd.DataFrame(data)
 
 # IST time
-now_ist = datetime.now(ZoneInfo("Asia/Kolkata"))
+now_ist = datetime.now(ZoneInfo("Asia/Kolkata")).replace(microsecond=0).replace(tzinfo=None)
 print("IST time:", now_ist)
 df['timestamp'] = now_ist
 
@@ -28,7 +28,7 @@ df = df[['timestamp','stationName', 'parkingAreaName', 'twoWheelerCapacity','thr
 
 df = df[df['stationName'].isin(['OTA - Nanganallur Road','Arignar Anna Alandur ','Guindy', 'Little Mount','St. Thomas Mount'])]
 
-print(df.head())
+print(df[['timestamp','stationName']].drop_duplicates())
 records = df.to_dict(orient='records')
 
 if records:
