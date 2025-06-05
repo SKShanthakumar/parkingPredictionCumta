@@ -1,3 +1,7 @@
 requests
 pandas
 pymongo
+matplotlib
+neuralprophet
+scikit-learn
+numpy

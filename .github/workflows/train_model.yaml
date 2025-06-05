@@ -1,0 +1,37 @@
+name: Train Forecasting Model
+
+on:
+  schedule:
+    - cron: '0 * * * *'  # every hour
+  workflow_dispatch:     # allow manual trigger
+
+jobs:
+  train:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Run training script
+        run: |
+          python train_model.py
+
+      # Optional: commit model file
+      - name: Commit model
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add parking_forecast_model.pkl
+          git commit -m "Auto-update model - $(date)"
+          git push
+        continue-on-error: true  # prevents workflow fail if no changes
