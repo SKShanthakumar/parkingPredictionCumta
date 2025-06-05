@@ -27,11 +27,15 @@ jobs:
           python train_model.py
 
       # Optional: commit model file
-      - name: Commit model
+      - name: Commit and push model using token
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add parking_forecast_model.pkl
-          git commit -m "Auto-update model - $(date)" || echo "No changes"
-          git push https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/chennai-cumta/parkingPred.git HEAD:main
-        continue-on-error: true  # prevents workflow fail if no changes
+          git commit -m "Auto-update model - $(date)" || echo "No changes to commit"
+          
+          # Set remote with token
+          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/chennai-cumta/parkingPred.git
+          git push origin main
