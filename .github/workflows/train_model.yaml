@@ -32,6 +32,6 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add parking_forecast_model.pkl
-          git commit -m "Auto-update model - $(date)"
-          git push
+          git commit -m "Auto-update model - $(date)" || echo "No changes"
+          git push https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/chennai-cumta/parkingPred.git HEAD:main
         continue-on-error: true  # prevents workflow fail if no changes
