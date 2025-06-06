@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 pydantic
-supabase-py
 pandas
 python-multipart
+neuralprophet
+supabase==1.0.3
