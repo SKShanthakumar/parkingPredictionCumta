@@ -9,7 +9,7 @@ import os
 # After saving model to 'parking_forecast_model.pkl'
 from supabase import create_client
 
-MONGO_URI = os.getenv("MONGO_URI_NEW")
+MONGO_URI = os.getenv("MONGO_URI")
 # Connect to MongoDB
 client = pymongo.MongoClient(MONGO_URI, tls=True) # Change if needed
 db = client["parking"]  # Replace with your DB name
