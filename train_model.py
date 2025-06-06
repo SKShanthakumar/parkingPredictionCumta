@@ -9,9 +9,9 @@ import os
 
 #MONGO_URI = "mongodb+srv://vigneshcumta:hpdOu1rwH6PKcLXf@serverlessinstance0.wrf2q95.mongodb.net/parking?retryWrites=true&w=majority"
 #pymongo.MongoClient("mongodb+srv://<username>:<password>@<cluster-url>/<dbname>?retryWrites=true&w=majority")
-MONGO_URI = os.getenv("MONGO_URI", tls=True)
+MONGO_URI = os.getenv("MONGO_URI")
 # Connect to MongoDB
-client = pymongo.MongoClient(MONGO_URI)  # Change if needed
+client = pymongo.MongoClient(MONGO_URI, tls=True) # Change if needed
 db = client["parking"]  # Replace with your DB name
 collection = db["availability"]  # Replace with your collection name
 # Fetch all documents
