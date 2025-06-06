@@ -6,9 +6,9 @@ import pickle
 from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
 import numpy as np
 import os 
+# After saving model to 'parking_forecast_model.pkl'
+from supabase import create_client
 
-#MONGO_URI = "mongodb+srv://vigneshcumta:hpdOu1rwH6PKcLXf@serverlessinstance0.wrf2q95.mongodb.net/parking?retryWrites=true&w=majority"
-#pymongo.MongoClient("mongodb+srv://<username>:<password>@<cluster-url>/<dbname>?retryWrites=true&w=majority")
 MONGO_URI = os.getenv("MONGO_URI")
 # Connect to MongoDB
 client = pymongo.MongoClient(MONGO_URI, tls=True) # Change if needed
@@ -72,22 +72,24 @@ print(f"MAE :  {mae:.2f}")
 print(f"RMSE:  {rmse:.2f}")
 print(f"MAPE:  {mape:.2f}%")
 
-# After saving model to 'parking_forecast_model.pkl'
-from supabase import create_client
-import os
-
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
 if SUPABASE_URL and SUPABASE_KEY:
     supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    bucket = supabase.storage.from_("models")
+    try:
+        bucket.remove(["parking_forecast_model.pkl"])
+        print("Old model removed.")
+    except Exception:
+        print("No previous model found or already deleted.")
+
     with open("parking_forecast_model.pkl", "rb") as f:
-        supabase.storage.from_("models").upload(
+        bucket.upload(
             path="parking_forecast_model.pkl",
             file=f,
-            file_options={"content-type": "application/octet-stream"},
-            upsert=True
+            file_options={"content-type": "application/octet-stream"}
         )
     print("✅ Model uploaded to Supabase")
 else:
-    print("⚠️ Supabase credentials not found in env. Skipping upload.")
+    print("⚠️ Supabase credentials not found. Skipping upload.")
