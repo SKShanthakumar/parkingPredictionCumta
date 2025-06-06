@@ -72,7 +72,6 @@ print(f"RMSE:  {rmse:.2f}")
 print(f"MAPE:  {mape:.2f}%")
 
 # After saving model to 'parking_forecast_model.pkl'
-
 from supabase import create_client
 import os
 
