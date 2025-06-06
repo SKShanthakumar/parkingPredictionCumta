@@ -9,7 +9,12 @@ import os
 # After saving model to 'parking_forecast_model.pkl'
 from supabase import create_client
 
+<<<<<<< HEAD
 MONGO_URI = os.getenv("MONGO_URI")
+=======
+#MONGO_URI = os.getenv("MONGO_URI_NEW")
+MONGO_URI = "mongodb+srv://vigneshcumta:hpdOu1rwH6PKcLXf@serverlessinstance0.wrf2q95.mongodb.net/parking?retryWrites=true&w=majority"
+>>>>>>> 4ff2117b4fe83abf81f3bd11ac21d70b369c093b
 # Connect to MongoDB
 client = pymongo.MongoClient(MONGO_URI, tls=True) # Change if needed
 db = client["parking"]  # Replace with your DB name
