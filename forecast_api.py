@@ -54,11 +54,11 @@ def get_forecast(data: ForecastRequest):
     try:
         # Load model and its training data (history)
         import os
-        model_path = "/tmp/my_model.pkl"  # use /tmp
+        model_path = "/tmp/parking_forecast_model.pkl"  # use /tmp
         if not os.path.exists(model_path):
             # Download from Supabase
             with open(model_path, "wb") as f:
-                res = supabase.storage.from_("model-bucket").download("my_model.pkl")
+                res = supabase.storage.from_(MODEL_BUCKET).download(MODEL_FILENAME)
                 f.write(res)
 
         with open(model_path, "rb") as f:
