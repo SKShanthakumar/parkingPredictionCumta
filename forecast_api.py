@@ -4,7 +4,7 @@ from io import BytesIO
 import pandas as pd
 import pickle
 import os
-
+import traceback
 from supabase import create_client, Client
 
 # Initialize FastAPI app
@@ -13,6 +13,7 @@ app = FastAPI(title="Parking Availability Forecast API")
 # Supabase config (store in Render's Environment Variables)
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
 MODEL_BUCKET = "models"  # change if different
 MODEL_FILENAME = "parking_forecast_model.pkl"
 
@@ -30,9 +31,19 @@ class ForecastRequest(BaseModel):
 def load_model_from_supabase():
     global model
     try:
-        response = supabase.storage.from_(MODEL_BUCKET).download(MODEL_FILENAME)
-        model = pickle.load(BytesIO(response))
-        return model
+        import os
+        model_path = "/tmp/parking_forecast_model.pkl"  # use /tmp
+        if not os.path.exists(model_path):
+            print("if", os.path.exists(model_path))
+            # Download from Supabase
+            with open(model_path, "wb") as f:
+                res = supabase.storage.from_(MODEL_BUCKET).download(MODEL_FILENAME)
+                f.write(res)
+        with open(model_path, "rb") as f:
+            model = pickle.load(f)
+        #response = supabase.storage.from_(MODEL_BUCKET).download(MODEL_FILENAME)
+        #model = pickle.load(BytesIO(response))
+        #return model
         print("✅ Model loaded successfully.")
     except Exception as e:
         print(f"❌ Failed to load model: {e}")
@@ -51,11 +62,12 @@ def read_root():
 # Forecast endpoint
 @app.post("/forecast")
 def get_forecast(data: ForecastRequest):
+
     try:
         # Load model and its training data (history)
-        import os
         model_path = "/tmp/parking_forecast_model.pkl"  # use /tmp
         if not os.path.exists(model_path):
+            print("if", os.path.exists(model_path))
             # Download from Supabase
             with open(model_path, "wb") as f:
                 res = supabase.storage.from_(MODEL_BUCKET).download(MODEL_FILENAME)
@@ -66,11 +78,11 @@ def get_forecast(data: ForecastRequest):
 
         #response = supabase.storage.from_(MODEL_BUCKET).download(MODEL_FILENAME)
         #model_data = pickle.load(BytesIO(response))
-        model = model_data['model']
-        history_df = model_data['history_df']
+        model_model = model['model']
+        history_df = model['history_df']
 
         # Make future dataframe starting from end of training data
-        future = model.make_future_dataframe(history_df, periods=data.periods)
+        future = model_model.make_future_dataframe(history_df, periods=data.periods)
         # Predict
         forecast = model.predict(future)
         # Return the forecasted part only
@@ -82,6 +94,7 @@ def get_forecast(data: ForecastRequest):
             }
             for _, row in forecast_tail.iterrows()
         ]
+        print("result", result)
         return {"forecast": result}
 
     except Exception as e:
