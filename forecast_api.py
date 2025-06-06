@@ -27,65 +27,36 @@ model = None
 class ForecastRequest(BaseModel):
     periods: int = 48  # number of 15-min steps (i.e., 12 = next 3 hours)
     
-# Load model from Supabase Storage
-def load_model_from_supabase():
-    global model
-    try:
-        import os
-        model_path = "/tmp/parking_forecast_model.pkl"  # use /tmp
-        if not os.path.exists(model_path):
-            print("if", os.path.exists(model_path))
-            # Download from Supabase
-            with open(model_path, "wb") as f:
-                res = supabase.storage.from_(MODEL_BUCKET).download(MODEL_FILENAME)
-                f.write(res)
-        with open(model_path, "rb") as f:
-            model = pickle.load(f)
-        #response = supabase.storage.from_(MODEL_BUCKET).download(MODEL_FILENAME)
-        #model = pickle.load(BytesIO(response))
-        #return model
-        print("✅ Model loaded successfully.")
-    except Exception as e:
-        print(f"❌ Failed to load model: {e}")
-        raise
-
-# Load model at startup
-@app.on_event("startup")
-async def startup_event():
-    load_model_from_supabase()
 
 # Health check
 @app.get("/")
 def read_root():
     return {"message": "🚀 Forecast API is running"}
 
-# Forecast endpoint
+@app.on_event("startup")
+def load_model_once():
+    global model
+    model_path = "/tmp/parking_forecast_model.pkl"
+    if not os.path.exists(model_path):
+        with open(model_path, "wb") as f:
+            res = supabase.storage.from_(MODEL_BUCKET).download(MODEL_FILENAME)
+            f.write(res)
+    with open(model_path, "rb") as f:
+        model = pickle.load(f)
+    print("✅ Model loaded at startup.")
+
+# ...existing code...
+
 @app.post("/forecast")
 def get_forecast(data: ForecastRequest):
-
     try:
-        # Load model and its training data (history)
-        model_path = "/tmp/parking_forecast_model.pkl"  # use /tmp
-        if not os.path.exists(model_path):
-            print("if", os.path.exists(model_path))
-            # Download from Supabase
-            with open(model_path, "wb") as f:
-                res = supabase.storage.from_(MODEL_BUCKET).download(MODEL_FILENAME)
-                f.write(res)
-
-        with open(model_path, "rb") as f:
-            model_data = pickle.load(f)
-
-        #response = supabase.storage.from_(MODEL_BUCKET).download(MODEL_FILENAME)
-        #model_data = pickle.load(BytesIO(response))
-        model_model = model['model']
+        global model
+        if model is None:
+            raise Exception("Model not loaded.")
+        prophet_model = model['model']
         history_df = model['history_df']
-
-        # Make future dataframe starting from end of training data
-        future = model_model.make_future_dataframe(history_df, periods=data.periods)
-        # Predict
-        forecast = model.predict(future)
-        # Return the forecasted part only
+        future = prophet_model.make_future_dataframe(history_df, periods=data.periods)
+        forecast = prophet_model.predict(future)
         forecast_tail = forecast.tail(data.periods)
         result = [
             {
@@ -94,8 +65,7 @@ def get_forecast(data: ForecastRequest):
             }
             for _, row in forecast_tail.iterrows()
         ]
-        print("result", result)
         return {"forecast": result}
-
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating forecast: {e}")
+# ...existing code...
