@@ -53,10 +53,19 @@ def read_root():
 def get_forecast(data: ForecastRequest):
     try:
         # Load model and its training data (history)
-        #with open("parking_forecast_model.pkl", "rb") as f:
-        #    model_data = pickle.load(f)
-        response = supabase.storage.from_(MODEL_BUCKET).download(MODEL_FILENAME)
-        model_data = pickle.load(BytesIO(response))
+        import os
+        model_path = "/tmp/my_model.pkl"  # use /tmp
+        if not os.path.exists(model_path):
+            # Download from Supabase
+            with open(model_path, "wb") as f:
+                res = supabase.storage.from_("model-bucket").download("my_model.pkl")
+                f.write(res)
+
+        with open(model_path, "rb") as f:
+            model_data = pickle.load(f)
+
+        #response = supabase.storage.from_(MODEL_BUCKET).download(MODEL_FILENAME)
+        #model_data = pickle.load(BytesIO(response))
         model = model_data['model']
         history_df = model_data['history_df']
 
