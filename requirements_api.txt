@@ -4,4 +4,3 @@ pydantic
 pandas
 python-multipart
 neuralprophet
-supabase==1.0.3

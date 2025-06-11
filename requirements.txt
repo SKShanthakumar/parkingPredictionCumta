@@ -5,4 +5,3 @@ matplotlib
 neuralprophet
 scikit-learn
 numpy
-supabase

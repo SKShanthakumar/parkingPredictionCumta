@@ -1,38 +1,31 @@
 # main.py
+import pymongo
+import os
 from fastapi import FastAPI
 from pydantic import BaseModel
-import pandas as pd
-from datetime import datetime
-import pickle
 
-# Load model and its training data (history)
-with open("parking_forecast_model.pkl", "rb") as f:
-    model_data = pickle.load(f)
-
-model = model_data['model']
-history_df = model_data['history_df']
+# mongo setup
+MONGO_URI = os.getenv("MONGO_URI")
+client = pymongo.MongoClient(MONGO_URI, tls=True) # Change if needed
+db = client["parking"]  # Replace with your DB name
+collection = db["forecast"]  # Replace with your collection name
 
 app = FastAPI()
 
 class ForecastRequest(BaseModel):
-    periods: int = 48  # number of 15-min steps (i.e., 12 = next 3 hours)
+    station_name: str
+
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the Parking Forecast API"}
 
 @app.post("/forecast")
 def forecast_parking(req: ForecastRequest):
-    # Make future dataframe starting from end of training data
-    future = model.make_future_dataframe(history_df, periods=req.periods)
+    station_name = req.station_name.lower().strip()
 
-    # Predict
-    forecast = model.predict(future)
-
-    # Return the forecasted part only
-    forecast_tail = forecast.tail(req.periods)
-
-    result = [
-        {
-            "timestamp": row['ds'].strftime('%Y-%m-%d %H:%M:%S'),
-            "predicted_availability": round(row['yhat1'], 2)
-        }
-        for _, row in forecast_tail.iterrows()
-    ]
-    return {"forecast": result}
+    doc = collection.find_one({"station_name": station_name})
+    
+    if doc and "predictions" in doc:
+        return {"forecast": doc["predictions"]}
+    else:
+        return {"forecast": [], "message": "No forecast found for this station"}
