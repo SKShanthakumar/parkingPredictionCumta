@@ -1,10 +1,13 @@
-import pymongo
+import mysql.connector
 import pandas as pd
 from neuralprophet import NeuralProphet
-import os   
+import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
+from dotenv import load_dotenv
 import argparse
+
+load_dotenv()
 
 # Argument parsing
 parser = argparse.ArgumentParser()
@@ -14,94 +17,221 @@ args = parser.parse_args()
 
 station_name = args.station
 vehicle_type = 'twoWheelerAvailable' if args.vehicle == 0 else 'threeNFourWheelerAvailable'
-periods = os.getenv("PERIODS")
-periods = int(periods)
+periods = int(os.getenv("PERIODS", 6))
 
-# MongoDB setup
-MONGO_URI = os.getenv("MONGO_URI")
-client = pymongo.MongoClient(MONGO_URI, tls=True) # Change if needed
-db = client["parking"]  # Replace with your DB name
+# MySQL database configuration
+DB_CONFIG = {
+    'host': os.getenv("DB_HOST"),
+    'user': os.getenv("DB_USER"),
+    'password': os.getenv("DB_PASSWORD"),
+    'database': os.getenv("DB_NAME")
+}
+
+def get_db_connection():
+    """Create and return a MySQL database connection"""
+    return mysql.connector.connect(**DB_CONFIG)
 
 def train_model():
-    availability_collection = db["availability"]  # Replace with your collection name
-    cursor = availability_collection.find()  # Fetch all documents
-
-    raw_df = pd.DataFrame(list(cursor))     # Convert to DataFrame
-    raw_df.drop(columns=['_id'], inplace=True, errors='ignore')  # Drop MongoDB's default _id field if not needed
-    
-    # Display the DataFrame
-    print(f"Shape of raw data: {raw_df.shape}")
-
-    # group by timestamp and stationName
-    grouped_df = raw_df.groupby(['timestamp', 'stationName']).agg({
-        'parkingAreaName': lambda x: list(x),
-        'twoWheelerCapacity': 'sum',
-        'threeNFourWheelerCapacity': 'sum',
-        'twoWheelerOccupied': 'sum',
-        'threeNFourWheelerOccupied': 'sum',
-        'twoWheelerAvailable': 'sum',
-        'threeNFourWheelerAvailable': 'sum'
-    }).reset_index()
-
-    cutoff_ts = datetime.now() #'2025-06-04 23:00:00.000'
-    df = grouped_df[(grouped_df['stationName']==station_name)]
-    df = df.sort_values('timestamp')
-    print(f"Shape of {station_name} data: {df.shape}")
-
-    df['timestamp'] = pd.to_datetime(df['timestamp'])
-    df = df.sort_values('timestamp')
-
-    # Prophet expects columns: ds (date), y (target)
-    df_prophet = df[df['timestamp']<=cutoff_ts].reset_index()[['timestamp', vehicle_type]]
-    df_prophet.columns = ['ds', 'y']
-
-    df_prophet = df_prophet.dropna()
-    df_prophet = df_prophet[df_prophet['y'] >= 0]
-
-    m = NeuralProphet(daily_seasonality=True, learning_rate=1.0)
-    m.fit(df_prophet, freq="15min")
-    
-    print(f"{station_name} - {vehicle_type} Model Trained Successfully")
-    return m, df_prophet
+    """Train the NeuralProphet model using data from MySQL availability table"""
+    try:
+        # Connect to MySQL
+        connection = get_db_connection()
+        
+        # Query to fetch all availability data
+        query = """
+        SELECT timestamp, stationName, parkingAreaName, 
+               twoWheelerCapacity, threeNFourWheelerCapacity,
+               twoWheelerOccupied, threeNFourWheelerOccupied,
+               twoWheelerAvailable, threeNFourWheelerAvailable
+        FROM availability
+        ORDER BY timestamp
+        """
+        
+        # Load data into pandas DataFrame
+        raw_df = pd.read_sql(query, connection)
+        connection.close()
+        
+        print(f"Shape of raw data: {raw_df.shape}")
+        
+        # Group by timestamp and stationName
+        grouped_df = raw_df.groupby(['timestamp', 'stationName']).agg({
+            'parkingAreaName': lambda x: list(x),
+            'twoWheelerCapacity': 'sum',
+            'threeNFourWheelerCapacity': 'sum',
+            'twoWheelerOccupied': 'sum',
+            'threeNFourWheelerOccupied': 'sum',
+            'twoWheelerAvailable': 'sum',
+            'threeNFourWheelerAvailable': 'sum'
+        }).reset_index()
+        
+        # Filter data for specific station
+        cutoff_ts = datetime.now()
+        df = grouped_df[grouped_df['stationName'] == station_name]
+        df = df.sort_values('timestamp')
+        
+        print(f"Shape of {station_name} data: {df.shape}")
+        
+        # Ensure timestamp is datetime
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        df = df.sort_values('timestamp')
+        
+        # Prepare data for Prophet (expects columns: ds (date), y (target))
+        df_prophet = df[df['timestamp'] <= cutoff_ts].reset_index()[['timestamp', vehicle_type]]
+        df_prophet.columns = ['ds', 'y']
+        df_prophet = df_prophet.dropna()
+        df_prophet = df_prophet[df_prophet['y'] >= 0]
+        
+        # Train the model
+        m = NeuralProphet(daily_seasonality=True, learning_rate=1.0)
+        m.fit(df_prophet, freq="15min")
+        
+        print(f"{station_name} - {vehicle_type} Model Trained Successfully")
+        return m, df_prophet
+        
+    except mysql.connector.Error as e:
+        print(f"MySQL Error in train_model: {e}")
+        raise
+    except Exception as e:
+        print(f"Error in train_model: {e}")
+        raise
 
 def forecast_parking():
-    model, history_df = train_model()
-    future = model.make_future_dataframe(history_df, periods=periods)
+    """Generate forecast and save to MySQL database"""
+    try:
+        # Train the model
+        model, history_df = train_model()
+        
+        # Generate future dataframe
+        future = model.make_future_dataframe(history_df, periods=periods)
+        
+        # Make predictions
+        forecast = model.predict(future)
+        
+        # Get only the forecasted part
+        forecast_tail = forecast.tail(periods)
+        
+        # Prepare result data
+        result = []
+        for _, row in forecast_tail.iterrows():
+            result.append({
+                "timestamp": row['ds'].strftime('%Y-%m-%d %H:%M:%S'),
+                "predicted_availability": round(row['yhat1'], 2)
+            })
+        
+        print("Forecasting completed")
+        
+        # Save to MySQL database
+        save_forecast_to_mysql(result)
+        
+        return result
+        
+    except Exception as e:
+        print(f"Error in forecast_parking: {e}")
+        raise
 
-    # Predict
-    forecast = model.predict(future)
+def save_forecast_to_mysql(predictions):
+    """Save forecast results to MySQL database"""
+    try:
+        connection = get_db_connection()
+        cursor = connection.cursor()
+        
+        # Current IST timestamp
+        now_ist = datetime.now(ZoneInfo("Asia/Kolkata")).replace(microsecond=0).replace(tzinfo=None)
+        
+        # Insert into forecast_batches table
+        insert_batch_query = """
+        INSERT INTO forecast_batches (station_name, vehicle_type, timestamp)
+        VALUES (%s, %s, %s)
+        """
+        
+        batch_data = (station_name, vehicle_type, now_ist)
+        cursor.execute(insert_batch_query, batch_data)
+        
+        # Get the inserted batch ID
+        batch_id = cursor.lastrowid
+        
+        # Prepare data for forecast table
+        forecast_records = []
+        for prediction in predictions:
+            forecast_records.append((
+                batch_id,
+                prediction["timestamp"],
+                prediction["predicted_availability"]
+            ))
+        
+        # Insert into forecast table
+        insert_forecast_query = """
+        INSERT INTO forecast (batch_id, timestamp, predicted_availability)
+        VALUES (%s, %s, %s)
+        """
+        
+        cursor.executemany(insert_forecast_query, forecast_records)
+        
+        # Commit the transaction
+        connection.commit()
+        
+        print(f"Data inserted in MySQL - Batch ID: {batch_id}")
+        print(f"Inserted {len(forecast_records)} forecast records")
+        
+        cursor.close()
+        connection.close()
+        
+    except mysql.connector.Error as e:
+        print(f"MySQL Error in save_forecast_to_mysql: {e}")
+        if connection:
+            connection.rollback()
+        raise
+    except Exception as e:
+        print(f"Error in save_forecast_to_mysql: {e}")
+        if connection:
+            connection.rollback()
+        raise
 
-    # Return the forecasted part only
-    forecast_tail = forecast.tail(periods)
-
-    result = [
-        {
-            "timestamp": row['ds'].strftime('%Y-%m-%d %H:%M:%S'),
-            "predicted_availability": round(row['yhat1'], 2)
-        }
-        for _, row in forecast_tail.iterrows()
-    ]
-    print("Forecasting completed")
-
-    # mongo collection object
-    forecast_collection = db["forecast"]
-
-    now_ist = datetime.now(ZoneInfo("Asia/Kolkata")).replace(microsecond=0).replace(tzinfo=None)
-
-    # Insert in MongoDB
-    doc = {
-        "station_name": station_name,
-        "predictions": result,
-        "timestamp": now_ist,
-        "vehicle_type": vehicle_type
-    }
-    forecast_collection.insert_one(doc)
-
-    print("data inserted in MongoDB")
-    return result
+def get_latest_forecast(station_name, vehicle_type, limit=None):
+    """Retrieve the latest forecast for a station and vehicle type"""
+    try:
+        connection = get_db_connection()
+        
+        query = """
+        SELECT fb.id as batch_id, fb.station_name, fb.vehicle_type, 
+               fb.timestamp as batch_timestamp,
+               f.timestamp as forecast_timestamp, 
+               f.predicted_availability
+        FROM forecast_batches fb
+        JOIN forecast f ON fb.id = f.batch_id
+        WHERE fb.station_name = %s AND fb.vehicle_type = %s
+        ORDER BY fb.timestamp DESC, f.timestamp ASC
+        """
+        
+        if limit:
+            query += f" LIMIT {limit}"
+        
+        df = pd.read_sql(query, connection, params=(station_name, vehicle_type))
+        connection.close()
+        
+        return df
+        
+    except mysql.connector.Error as e:
+        print(f"MySQL Error in get_latest_forecast: {e}")
+        return None
 
 if __name__ == "__main__":
-    forecast = forecast_parking()
-    print(f"Forecast for {station_name} ({vehicle_type}):")
-    for entry in forecast:
-        print(f"Timestamp: {entry['timestamp']}, Predicted Availability: {entry['predicted_availability']}")
+    try:
+        # Generate forecast
+        forecast = forecast_parking()
+        
+        print(f"\nForecast for {station_name} ({vehicle_type}):")
+        for entry in forecast:
+            print(f"Timestamp: {entry['timestamp']}, Predicted Availability: {entry['predicted_availability']}")
+        
+        # Optional: Show latest forecast from database
+        print(f"\n=== Latest Forecast from Database ===")
+        latest_forecast_df = get_latest_forecast(station_name, vehicle_type, limit=10)
+        if latest_forecast_df is not None and not latest_forecast_df.empty:
+            print(latest_forecast_df[['forecast_timestamp', 'predicted_availability']].to_string(index=False))
+        else:
+            print("No forecast data found in database")
+            
+    except Exception as e:
+        print(f"Error in main execution: {e}")
+        exit(1)
