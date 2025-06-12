@@ -8,8 +8,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-STATIONS = os.getenv("STATIONS").split(",")
-
 # MySQL setup
 mysql_db = mysql.connector.connect(
     host=os.getenv("DB_HOST"),
