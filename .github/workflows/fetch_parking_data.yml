@@ -4,7 +4,7 @@ name: Fetch Chennai Metro Parking Data
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/15 * * * *'
 
 jobs:
   run-script:
