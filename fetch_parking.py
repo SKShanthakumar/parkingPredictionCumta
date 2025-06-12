@@ -10,8 +10,6 @@ load_dotenv()
 
 STATIONS = os.getenv("STATIONS").split(",")
 
-print(os.getenv("DB_HOST"))
-
 # MySQL setup
 mysql_db = mysql.connector.connect(
     host=os.getenv("DB_HOST"),
@@ -33,8 +31,6 @@ df['timestamp'] = now_ist
 
 df = df[['timestamp','stationName', 'parkingAreaName', 'twoWheelerCapacity','threeNFourWheelerCapacity',
       'twoWheelerOccupied', 'threeNFourWheelerOccupied','twoWheelerAvailable','threeNFourWheelerAvailable']]
-
-df = df[df['stationName'].isin(STATIONS)]
 
 print(df[['timestamp','stationName']].drop_duplicates())
 records = df.to_dict(orient='records')
