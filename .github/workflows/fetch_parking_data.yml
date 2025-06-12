@@ -1,0 +1,36 @@
+
+name: Fetch Chennai Metro Parking Data
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+
+jobs:
+  run-script:
+    runs-on: ubuntu-latest
+    env:
+      PERIODS: ${{ secrets.PERIODS }}
+      PARKING_DATA_API: ${{ secrets.PARKING_DATA_API }}
+      DB_HOST: ${{ secrets.DB_HOST }}
+      DB_USER: ${{ secrets.DB_USER }}
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+      DB_NAME: ${{ secrets.DB_NAME }}
+      DB_PORT: ${{ secrets.DB_PORT }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: sql
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r requirements_parking.txt
+
+      - name: Run script
+        run: python fetch_parking.py
