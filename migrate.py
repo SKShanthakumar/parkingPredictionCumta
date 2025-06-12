@@ -1,44 +1,33 @@
-import requests
-import os
-from datetime import datetime
-from zoneinfo import ZoneInfo
+import pymongo
 import mysql.connector
-import pandas as pd
+import os
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
-STATIONS = os.getenv("STATIONS").split(",")
+# MongoDB setup
+MONGO_URI = os.getenv("MONGO_URI")
+client = pymongo.MongoClient(MONGO_URI, tls=True)
+mongo_db = client["parking"]  # Renamed to avoid conflict with mysql connection
+print("MongoDB collections:", mongo_db.list_collection_names())
+collection = mongo_db["availability"]
 
-print(os.getenv("DB_HOST"))
+# Fetch all documents from MongoDB
+cursor = collection.find()
+data = list(cursor)
+print(f"Found {len(data)} documents in MongoDB")
 
 # MySQL setup
 mysql_db = mysql.connector.connect(
     host=os.getenv("DB_HOST"),
     user=os.getenv("DB_USER"),
     password=os.getenv("DB_PASSWORD"),
-    database=os.getenv("DB_NAME"),
-    port=os.getenv("DB_PORT")
+    database=os.getenv("DB_NAME")
 )
 mysql_cursor = mysql_db.cursor()
 
-API = os.getenv("PARKING_DATA_API")
-data = requests.get(API).json()
-df = pd.DataFrame(data)
-
-# IST time
-now_ist = datetime.now(ZoneInfo("Asia/Kolkata")).replace(microsecond=0).replace(tzinfo=None)
-print("IST time:", now_ist)
-df['timestamp'] = now_ist
-
-df = df[['timestamp','stationName', 'parkingAreaName', 'twoWheelerCapacity','threeNFourWheelerCapacity',
-      'twoWheelerOccupied', 'threeNFourWheelerOccupied','twoWheelerAvailable','threeNFourWheelerAvailable']]
-
-df = df[df['stationName'].isin(STATIONS)]
-
-print(df[['timestamp','stationName']].drop_duplicates())
-records = df.to_dict(orient='records')
-
+# Prepare the insert query
 insert_query = """
 INSERT INTO availability (
     timestamp, stationName, parkingAreaName, twoWheelerCapacity,
@@ -47,9 +36,12 @@ INSERT INTO availability (
 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
 """
 
+# Process and insert data
+successful_inserts = 0
+failed_inserts = 0
 records_to_insert = []
 
-for doc in records:
+for doc in data:
     try:
         # Extract data from MongoDB document (skip _id field)
         timestamp = doc.get('timestamp')
@@ -96,7 +88,8 @@ try:
     if records_to_insert:
         mysql_cursor.executemany(insert_query, records_to_insert)
         mysql_db.commit()
-        print(f"Successfully inserted {len(records_to_insert)} records into MySQL")
+        successful_inserts = len(records_to_insert)
+        print(f"Successfully inserted {successful_inserts} records into MySQL")
     else:
         print("No records to insert")
         
@@ -107,8 +100,6 @@ except mysql.connector.Error as e:
     # Try individual inserts if bulk insert fails
     print("Attempting individual inserts...")
     for i, record in enumerate(records_to_insert):
-        successful_inserts = 0
-        failed_inserts = 0
         try:
             mysql_cursor.execute(insert_query, record)
             mysql_db.commit()
@@ -118,12 +109,26 @@ except mysql.connector.Error as e:
             print(f"Record data: {record}")
             failed_inserts += 1
             mysql_db.rollback()
-        print(f"Successful inserts: {successful_inserts}, Failed inserts: {failed_inserts}")
 
-finally:
-    # Close the MySQL connection
-    if mysql_cursor:
-        mysql_cursor.close()
-    if mysql_db:
-        mysql_db.close()
-    print("MySQL connection closed.")
+# Verify the migration
+mysql_cursor.execute("SELECT COUNT(*) FROM availability")
+mysql_count = mysql_cursor.fetchone()[0]
+print(f"\nMigration Summary:")
+print(f"MongoDB documents: {len(data)}")
+print(f"MySQL records after migration: {mysql_count}")
+print(f"Successful inserts: {successful_inserts}")
+print(f"Failed inserts: {failed_inserts}")
+
+# Show some sample data from MySQL
+print("\nSample data from MySQL:")
+mysql_cursor.execute("SELECT * FROM availability LIMIT 5")
+sample_records = mysql_cursor.fetchall()
+for record in sample_records:
+    print(record)
+
+# Clean up connections
+mysql_cursor.close()
+mysql_db.close()
+client.close()
+
+print("\nMigration completed!")

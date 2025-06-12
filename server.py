@@ -3,6 +3,9 @@ import pymongo
 import os
 from fastapi import FastAPI
 from pydantic import BaseModel
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # mongo setup
 MONGO_URI = os.getenv("MONGO_URI")
