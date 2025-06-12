@@ -93,7 +93,7 @@ def forecast_parking():
 
     # Insert in MongoDB
     doc = {
-        "station_name": station_name,
+        "station_name": station_name.lower().strip(),
         "predictions": result,
         "timestamp": now_ist,
         "vehicle_type": vehicle_type

@@ -26,9 +26,9 @@ def read_root():
 def forecast_parking(req: ForecastRequest):
     station_name = req.station_name.lower().strip()
 
-    doc = collection.find_one({"station_name": station_name})
+    doc = collection.find({"station_name": station_name}).sort("timestamp", pymongo.DESCENDING)
     
-    if doc and "predictions" in doc:
-        return {"forecast": doc["predictions"]}
+    if doc[0] and "predictions" in doc[0]:
+        return {"forecast": doc[0]["predictions"]}
     else:
         return {"forecast": [], "message": "No forecast found for this station"}
