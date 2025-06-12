@@ -187,34 +187,6 @@ def save_forecast_to_mysql(predictions):
             connection.rollback()
         raise
 
-def get_latest_forecast(station_name, vehicle_type, limit=None):
-    """Retrieve the latest forecast for a station and vehicle type"""
-    try:
-        connection = get_db_connection()
-        
-        query = """
-        SELECT fb.id as batch_id, fb.station_name, fb.vehicle_type, 
-               fb.timestamp as batch_timestamp,
-               f.timestamp as forecast_timestamp, 
-               f.predicted_availability
-        FROM forecast_batches fb
-        JOIN forecast f ON fb.id = f.batch_id
-        WHERE fb.station_name = %s AND fb.vehicle_type = %s
-        ORDER BY fb.timestamp DESC, f.timestamp ASC
-        """
-        
-        if limit:
-            query += f" LIMIT {limit}"
-        
-        df = pd.read_sql(query, connection, params=(station_name, vehicle_type))
-        connection.close()
-        
-        return df
-        
-    except mysql.connector.Error as e:
-        print(f"MySQL Error in get_latest_forecast: {e}")
-        return None
-
 if __name__ == "__main__":
     try:
         # Generate forecast
@@ -223,14 +195,6 @@ if __name__ == "__main__":
         print(f"\nForecast for {station_name} ({vehicle_type}):")
         for entry in forecast:
             print(f"Timestamp: {entry['timestamp']}, Predicted Availability: {entry['predicted_availability']}")
-        
-        # Optional: Show latest forecast from database
-        print(f"\n=== Latest Forecast from Database ===")
-        latest_forecast_df = get_latest_forecast(station_name, vehicle_type, limit=10)
-        if latest_forecast_df is not None and not latest_forecast_df.empty:
-            print(latest_forecast_df[['forecast_timestamp', 'predicted_availability']].to_string(index=False))
-        else:
-            print("No forecast data found in database")
             
     except Exception as e:
         print(f"Error in main execution: {e}")
