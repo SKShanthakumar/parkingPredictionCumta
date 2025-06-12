@@ -4,6 +4,9 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from pymongo import MongoClient
 import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Connect to MongoDB
 MONGO_URI = os.getenv("MONGO_URI")

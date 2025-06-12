@@ -5,6 +5,9 @@ import os
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import argparse
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Argument parsing
 parser = argparse.ArgumentParser()
