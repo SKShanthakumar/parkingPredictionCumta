@@ -1,7 +1,10 @@
 requests
+python-dotenv
+mysql-connector-python
+python-dateutil
 pandas
-pymongo
-matplotlib
+fastapi
+uvicorn
+pydantic
+python-multipart
 neuralprophet
-scikit-learn
-numpy

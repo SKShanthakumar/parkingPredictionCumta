@@ -1,5 +1,6 @@
 import requests
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 import os
 import mysql.connector
@@ -13,7 +14,8 @@ try:
         host=os.getenv("DB_HOST"),
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
-        database=os.getenv("DB_NAME")
+        database=os.getenv("DB_NAME"),
+        port=os.getenv("DB_PORT")
     )
     cursor = mysql_db.cursor()
     print("MySQL connection established successfully.")
@@ -23,11 +25,11 @@ except mysql.connector.Error as e:
     exit(1)
 
 now = datetime.now()
-timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
+timestamp = datetime.now(ZoneInfo("Asia/Kolkata")).replace(microsecond=0).replace(tzinfo=None)
 
 # Fetching ticket share data from the API
 try:
-    url = "https://commuters-dataapi.chennaimetrorail.org/api/PassengerFlow/allTicketCount/0"
+    url = os.getenv("TICKET_SHARE_API")
     response = requests.get(url)
     data = response.json()
 
@@ -80,7 +82,7 @@ except Exception as e:
 
 # Fetching hourly passenger data from the API
 try:
-    url = "https://commuters-dataapi.chennaimetrorail.org/api/PassengerFlow/hourlybaseddata/0"
+    url = os.getenv("HOURLY_DATA_API")
     response = requests.get(url)
     data = response.json()
 
@@ -129,10 +131,9 @@ except mysql.connector.Error as e:
 except Exception as e:
     print(f"Error fetching/parsing hourly passenger data: {e}")
 
-
 # Fetching station data from the API
 try:
-    url = "https://commuters-dataapi.chennaimetrorail.org/api/PassengerFlow/stationData/0"
+    url = os.getenv("STATION_DATA_API")
     response = requests.get(url)
     data = response.json()
 

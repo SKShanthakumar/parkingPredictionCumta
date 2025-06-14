@@ -1,0 +1,8 @@
+# Run this job 5th minute of every hour in UTC - 35th minute of every hour in IST
+5 * * * * root /usr/local/bin/python /app/fetch_passenger.py >> /var/log/cron.log 2>&1
+
+# Run this job 35th minute of every hour in UTC - 5th minute of every hour in IST
+35 * * * * root bash /trainingScript.sh >> /var/log/trainingSchedule.log 2>&1
+
+# Run this job every 15th minute
+*/15 * * * * root /usr/local/bin/python /app/fetch_parking.py >> /var/log/cron.log 2>&1

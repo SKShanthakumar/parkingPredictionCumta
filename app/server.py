@@ -14,13 +14,15 @@ try:
         host=os.getenv("DB_HOST"),
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
-        database=os.getenv("DB_NAME")
+        database=os.getenv("DB_NAME"),
+        port=os.getenv("DB_PORT")
     )
     cursor = mysql_db.cursor()
     print("MySQL connection established successfully.")
 
 except mysql.connector.Error as e:
     print(f"MySQL connection error: {e}")
+    exit(1)
 
 app = FastAPI()
 
@@ -30,6 +32,7 @@ class ForecastRequest(BaseModel):
 
 def get_latest_forecast(station_name, vehicle_type):
     """Retrieve the latest forecast for a station and vehicle type"""
+    global cursor
     try:        
         query = """
         SELECT f.timestamp as forecast_timestamp, 

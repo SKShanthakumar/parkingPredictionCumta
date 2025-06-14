@@ -1,5 +1,0 @@
-requests
-python-dotenv
-mysql-connector-python
-python-dateutil
-pandas
