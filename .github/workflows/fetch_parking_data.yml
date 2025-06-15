@@ -32,4 +32,4 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run script
-        run: python fetch_parking.py
+        run: python app/fetch_parking.py
