@@ -1,0 +1,13 @@
+name: Heartbeat Signal
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+
+jobs:
+  call-url:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Make HTTP request
+        run: curl -X GET "${{ secrets.URL }}"
