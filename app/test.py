@@ -4,8 +4,6 @@ import mysql.connector
 
 load_dotenv()
 
-print(os.getenv("DB_HOST"))
-
 # MySQL setup
 try:
     mysql_db = mysql.connector.connect(
@@ -16,6 +14,10 @@ try:
         port=os.getenv("DB_PORT")
     )
     cursor = mysql_db.cursor()
+    # cursor.execute("SELECT * FROM availability")
+    # rows = cursor.fetchall()
+    # for row in rows:
+    #     print(row)
     print("MySQL connection established successfully.")
 
 except mysql.connector.Error as e:
